@@ -6,14 +6,14 @@ The app uses Supabase Auth for email/password and Google sign-in. It stores each
 
 1. Create a project at https://supabase.com.
 2. In **Project Settings > API**, copy the **Project URL** and the **anon public key**.
-3. Put them in the two constants at the top of `app.js`:
+3. Copy `.env.example` to `.env` and put them there:
 
 ```js
-const SUPABASE_URL = 'https://your-project.supabase.co';
-const SUPABASE_ANON_KEY = 'your-anon-public-key';
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_ANON_KEY=your-supabase-publishable-anon-key
 ```
 
-The anon key is intended for browser use. Never put a service-role key in this app.
+For this no-build static app, copy those same values into the ignored `env.js` runtime bridge. Browsers cannot read `.env` files directly. The anon/publishable key is intended for browser use; never put a service-role key in `.env`, `env.js`, or frontend code.
 
 ## 2. Enable providers
 

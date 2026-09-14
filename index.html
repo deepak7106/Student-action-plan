@@ -9,6 +9,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="env.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
@@ -20,7 +21,7 @@
       <button class="google-button" id="googleSignIn" type="button"><span class="google-g">G</span> Continue with Google</button>
       <button class="auth-switch" id="authMode" type="button">Need an account? <strong>Sign up</strong></button>
       <p class="auth-status" id="authStatus" role="alert"></p><button class="resend-button" id="resendConfirmation" type="button" hidden>Resend confirmation email</button>
-      <p class="auth-config" id="authConfig">Add your Supabase URL and anon key in app.js to enable secure authentication.</p>
+      <p class="auth-config" id="authConfig">Add your Supabase values to .env and env.js to enable authentication.</p>
     </div>
   </section>
   <div class="app-shell">

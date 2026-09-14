@@ -1,0 +1,4 @@
+.env
+env.js
+.env.*
+!.env.example

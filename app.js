@@ -1,5 +1,5 @@
-const SUPABASE_URL = 'https://cotvenegsxfixgewkvyx.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_0h84BTWKfzygczbJSxuKUA_iEIBOeNi';
+const SUPABASE_URL = window.__APP_CONFIG__?.SUPABASE_URL || '';
+const SUPABASE_ANON_KEY = window.__APP_CONFIG__?.SUPABASE_ANON_KEY || '';
 const STORAGE_KEY_PREFIX = 'student-action-planner.tasks.v1';
 const supabaseClient = SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const categoryLabels = { critical: 'Critical', attention: 'Needs attention', ahead: 'Plan ahead', later: 'Later' };

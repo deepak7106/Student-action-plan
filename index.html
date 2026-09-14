@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#f7f8fc" />
+  <title>Student Action Planner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar">
+      <div class="brand">
+        <div class="brand-mark"><span></span><span></span><span></span></div>
+        <span>action<span class="brand-accent">/</span>planner</span>
+      </div>
+      <nav class="primary-nav" aria-label="Main navigation">
+        <button class="nav-item active" data-view="overview"><span class="nav-icon">⌂</span> Overview</button>
+        <button class="nav-item" data-view="tasks"><span class="nav-icon">✓</span> My tasks <span class="nav-count" id="navTaskCount">6</span></button>
+        <button class="nav-item" data-view="calendar"><span class="nav-icon">□</span> Calendar</button>
+        <button class="nav-item" data-view="insights"><span class="nav-icon">◔</span> Insights</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <div class="focus-card">
+          <div class="focus-orbit"><span>✦</span></div>
+          <p class="eyebrow">Daily focus</p>
+          <strong>Small steps<br />compound.</strong>
+          <p>Keep the next action tiny and clear.</p>
+        </div>
+        <button class="settings-link"><span>⚙</span> Settings</button>
+        <div class="user-chip"><div class="avatar">JD</div><div><strong>Jordan Davis</strong><span>Student account</span></div><span class="more">···</span></div>
+      </div>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" aria-label="Open navigation">☰</button>
+        <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Today</strong></div>
+        <div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<span class="notification-dot"></span></button><button class="avatar small">JD</button></div>
+      </header>
+
+      <div class="page-content">
+        <section class="welcome-row">
+          <div><p class="date-label" id="currentDate">TODAY</p><h1>Good morning <span class="wave">👋</span></h1><p class="welcome-copy">Here’s your clear path through the day.</p></div>
+          <button class="primary-button" id="openAddTask"><span>＋</span> Add task</button>
+        </section>
+
+        <section class="stats-strip" aria-label="Task summary">
+          <div class="stat-item"><div class="stat-icon blue">✓</div><div><strong id="taskTotal">6 tasks</strong><span>on your plate today</span></div></div>
+          <div class="stat-item"><div class="stat-icon coral">!</div><div><strong id="attentionTotal">2 need attention</strong><span>worth starting soon</span></div></div>
+          <div class="stat-item"><div class="stat-icon yellow">◷</div><div><strong id="upcomingTotal">4 upcoming</strong><span>deadlines on the horizon</span></div></div>
+          <div class="stat-item workload"><div><span class="stat-label">ESTIMATED WORKLOAD</span><strong id="workloadTotal">6h 20m</strong></div><div class="workload-bars"><i></i><i></i><i></i><i></i><i></i><i class="muted"></i><i class="muted"></i></div></div>
+        </section>
+
+        <div class="content-grid">
+          <div class="main-column">
+            <section class="section-heading"><div><p class="eyebrow">Your priority queue</p><h2>What needs attention?</h2></div><button class="text-button" id="filterButton">All tasks <span>⌄</span></button></section>
+            <div class="task-list" id="taskList"></div>
+
+            <section class="next-action-panel" id="nextActionPanel">
+              <div class="next-label"><span class="spark">✦</span><span>NEXT ACTION</span><em>ONE THING AT A TIME</em></div>
+              <div class="next-content"><div><h2 id="nextActionTitle">Start your Physics Assignment</h2><p id="nextActionDescription">Complete Questions 1–5 to build momentum.</p><div class="action-meta"><span>◷ 45 min</span><span>↗ Focused work</span></div></div><button class="start-button" id="startNext">Start now <span>→</span></button></div>
+              <div class="next-progress"><span></span></div>
+            </section>
+
+            <section class="progress-section"><div class="section-heading compact"><div><p class="eyebrow">Momentum</p><h2>Your progress</h2></div><span class="week-label">THIS WEEK <b>⌄</b></span></div><div class="progress-grid"><div class="progress-card completion"><div class="progress-card-top"><span>Completion rate</span><strong id="completionRate">70%</strong></div><div class="ring-wrap"><div class="progress-ring"><span id="completionRing">70<small>%</small></span></div><div><p>Nice consistency!</p><small>Keep showing up, even<br />for 20 minutes.</small></div></div></div><div class="progress-card mini-stat"><span class="mini-icon green">✓</span><strong id="completedCount">14</strong><span>Tasks completed</span><div class="mini-line green-line"></div></div><div class="progress-card mini-stat"><span class="mini-icon orange">◌</span><strong id="remainingCount">6</strong><span>Tasks remaining</span><div class="mini-line orange-line"></div></div><div class="progress-card mini-stat"><span class="mini-icon red">!</span><strong id="overdueCount">1</strong><span>Overdue</span><div class="mini-line red-line"></div></div></div></section>
+          </div>
+
+          <aside class="right-column">
+            <section class="day-plan-card"><div class="card-heading"><div><p class="eyebrow">Make it realistic</p><h2>Plan your day</h2></div><span class="plan-icon">✦</span></div><p>Turn your priorities into a focused schedule that fits your time.</p><label class="time-field" for="availableTime"><span>Available today</span><input id="availableTime" type="number" min="15" max="1440" step="15" value="270" aria-label="Available minutes today" /><span>min</span></label><button class="outline-button" id="generatePlan"><span>✦</span> Generate my day</button><div class="plan-result" id="planResult"></div></section>
+            <section class="upcoming-section"><div class="section-heading compact"><div><p class="eyebrow">Don’t let them sneak up</p><h2>Upcoming</h2></div><button class="icon-button" aria-label="Open calendar">→</button></div><div class="deadline-list" id="deadlineList"></div><button class="view-calendar">View calendar <span>→</span></button></section>
+            <section class="quote-card"><span class="quote-mark">“</span><p>Start before you feel ready. Clarity comes from motion.</p><span class="quote-author">— YOUR PLANNER</span></section>
+          </aside>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <div class="modal-backdrop" id="taskModal" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-header"><div><p class="eyebrow">Build your plan</p><h2 id="modalTitle">Add a new task</h2></div><button class="close-button" id="closeModal" aria-label="Close">×</button></div><form id="taskForm"><label for="taskName">Task name<input id="taskName" name="name" placeholder="e.g. Prepare AI seminar" required /></label><div class="form-row"><label for="taskSubject">Subject / category<input id="taskSubject" name="subject" placeholder="e.g. Artificial Intelligence" required /></label><label for="taskDeadline">Deadline<input id="taskDeadline" name="deadline" type="date" required /></label></div><div class="form-row"><label for="taskImportance">Importance<select id="taskImportance" name="importance"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></label><label for="taskDuration">Estimated duration<select id="taskDuration" name="duration"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></label></div><div class="form-row"><label for="taskDifficulty">Difficulty<select id="taskDifficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label for="taskProgress">Progress<select id="taskProgress" name="progress"><option value="0">Not started</option><option value="25">Just started</option><option value="50">Halfway there</option></select></label></div><label for="taskDescription">Description <span class="optional">optional</span><textarea id="taskDescription" name="description" placeholder="What is the next concrete step?"></textarea></label><label class="checkbox-row" for="breakdownTask"><input id="breakdownTask" name="breakdown" type="checkbox" /> Break this into smaller actions</label><div class="modal-footer"><button type="button" class="text-button" id="cancelModal">Cancel</button><button type="submit" class="primary-button">Add to my plan <span>→</span></button></div></form></div></div>
+  <div class="toast" id="toast"><span>✓</span><p>Task added to your action plan.</p></div>
+  <script src="app.js"></script>
+</body>
+</html>

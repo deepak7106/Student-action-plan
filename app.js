@@ -8,6 +8,8 @@ let activeFilter = 'all';
 let lastModalTrigger = null;
 let recommendationOffset = 0;
 const THEME_STORAGE_KEY = 'student-action-planner.theme';
+const PREFERENCES_STORAGE_KEY = 'student-action-planner.preferences';
+let preferences = { availableMinutes: 270, dayStart: '09:00', autoBreakdown: true, browserReminders: false };
 
 function dateAtMidnight(value) {
   const date = value instanceof Date ? new Date(value) : new Date(`${value}T12:00:00`);
@@ -57,6 +59,10 @@ function saveTasks() {
     if (supabaseClient) supabaseClient.from('user_plans').upsert({ user_id: currentUser.id, data: tasks }, { onConflict: 'user_id' }).then(({ error }) => { if (error) console.warn('Unable to sync tasks to Supabase.', error); });
   } catch (error) { console.warn('Unable to save tasks.', error); }
 }
+
+function preferencesStorageKey() { return currentUser ? `${PREFERENCES_STORAGE_KEY}.${currentUser.id}` : PREFERENCES_STORAGE_KEY; }
+function savePreferences() { try { localStorage.setItem(preferencesStorageKey(), JSON.stringify(preferences)); } catch (error) { console.warn('Unable to save planner preferences.', error); } }
+function loadPreferences() { preferences = { availableMinutes: 270, dayStart: '09:00', autoBreakdown: true, browserReminders: false }; try { const saved = localStorage.getItem(preferencesStorageKey()); if (saved) preferences = { ...preferences, ...JSON.parse(saved) }; } catch (error) { console.warn('Unable to load planner preferences.', error); } document.querySelector('#defaultTime').value = preferences.availableMinutes; document.querySelector('#dayStart').value = preferences.dayStart; document.querySelector('#autoBreakdown').checked = preferences.autoBreakdown; document.querySelector('#browserReminders').checked = preferences.browserReminders; document.querySelector('#availableTime').value = preferences.availableMinutes; }
 
 async function loadUserTasks(user) {
   currentUser = user;
@@ -174,7 +180,7 @@ function renderUpcoming() { const list = document.querySelector('#deadlineList')
 function renderAll() { enrichTasks(); renderTasks(); renderStats(); renderNextAction(); renderUpcoming(); }
 
 function activateTask(id) { const task = tasks.find(item => String(item.id) === String(id)); if (!task) return; task.progress = Math.min(100, task.progress + 25); if (task.progress >= 100) task.subtasks.forEach(subtask => { subtask.completed = true; }); saveTasks(); renderAll(); showToast(task.progress >= 100 ? `${task.name} completed.` : `${task.name} is now active.`); }
-function timeLabel(totalMinutes) { const hour = 9 + Math.floor(totalMinutes / 60); const minute = totalMinutes % 60; return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; }
+function timeLabel(totalMinutes) { const [startHour, startMinute] = (preferences.dayStart || '09:00').split(':').map(Number); const total = startHour * 60 + startMinute + totalMinutes; return `${String(Math.floor(total / 60) % 24).padStart(2, '0')}:${String(total % 60).padStart(2, '0')}`; }
 function addPlanRow(parent, start, duration, name, isBreak) { const row = make('div', isBreak ? 'break-row' : ''); row.append(make('b', '', `${timeLabel(start)} – ${timeLabel(start + duration)}`), make('span', '', name)); parent.append(row); }
 function renderPlan() { const result = document.querySelector('#planResult'); const adaptive = document.querySelector('#adaptiveResult'); result.replaceChildren(); adaptive.replaceChildren(); const available = Math.max(15, Number(document.querySelector('#availableTime').value) || 0); const queue = tasks.filter(task => task.progress < 100).sort((a, b) => b.score - a.score); let used = 0; let cursor = 0; let scheduled = 0; const skipped = []; queue.forEach(task => { const remaining = Math.round(task.duration * (1 - task.progress / 100)); const block = Math.min(remaining, available - used); if (block < 15) { skipped.push(task); return; } if (scheduled > 0) { if (used + 15 + block > available) { skipped.push(task); return; } addPlanRow(result, cursor, 15, 'Break', true); cursor += 15; used += 15; } addPlanRow(result, cursor, block, task.name, false); cursor += block; used += block; scheduled += 1; }); if (!scheduled) result.append(make('p', 'plan-empty', 'No incomplete task fits in this time window. Try adding more time or finishing a smaller task.')); if (skipped.length && scheduled) { adaptive.append(make('strong', '', `${skipped.length} task${skipped.length > 1 ? 's' : ''} moved to tomorrow`), document.createTextNode(`You have ${Math.max(0, available - used)} minutes left. ${skipped[0].name} is lower priority than today’s scheduled work, so keep it for your next planning session.`)); } }
 function showToast(message) { const toast = document.querySelector('#toast'); toast.querySelector('p').textContent = message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2800); }
@@ -184,7 +190,7 @@ function setView(view) { document.body.dataset.view = view; document.querySelect
 function setAuthScreen(visible) { document.querySelector('#authScreen').classList.toggle('visible', visible); document.querySelector('.app-shell').classList.toggle('protected-hidden', visible); }
 function setAuthStatus(message, isError = false, showResend = false) { const status = document.querySelector('#authStatus'); status.textContent = message; status.classList.toggle('error', isError); document.querySelector('#resendConfirmation').hidden = !showResend; }
 function updateUserIdentity(user) { const email = user.email || ''; const name = user.user_metadata?.full_name || email.split('@')[0] || 'Student'; const initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); document.querySelector('#userName').textContent = name; document.querySelector('#userEmail').textContent = email; document.querySelector('#userAvatar').textContent = initials; document.querySelector('#headerAvatar').textContent = initials; document.querySelector('#settingsName').textContent = name; document.querySelector('#settingsEmail').textContent = email; document.querySelector('#settingsAvatar').textContent = initials; }
-async function startAuthenticatedSession(session) { currentUser = session.user; await loadUserTasks(currentUser); loadTheme(); updateUserIdentity(currentUser); setAuthScreen(false); renderAll(); renderPlan(); }
+async function startAuthenticatedSession(session) { currentUser = session.user; await loadUserTasks(currentUser); loadTheme(); loadPreferences(); updateUserIdentity(currentUser); setAuthScreen(false); renderAll(); renderPlan(); }
 async function initializeAuth() {
   if (!supabaseClient) { setAuthScreen(true); document.querySelector('#googleSignIn').disabled = true; document.querySelector('#authSubmit').disabled = true; setAuthStatus('Authentication is not configured yet.'); return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -198,7 +204,7 @@ document.querySelector('#generatePlan').addEventListener('click', () => { render
 document.querySelector('#aiPlanForm').addEventListener('submit', event => { event.preventDefault(); const input = document.querySelector('#aiTaskInput'); const created = parseNaturalPlan(input.value); if (!created.length) { showToast('Add a task, deadline, or study goal first.'); return; } tasks.push(...created); saveTasks(); renderAll(); renderPlan(); input.value = ''; showToast(`${created.length} action${created.length > 1 ? 's' : ''} added to your plan.`); });
 document.querySelector('#filterButton').addEventListener('click', event => { const filters = ['all', 'critical', 'attention', 'ahead', 'later']; activeFilter = filters[(filters.indexOf(activeFilter) + 1) % filters.length]; event.currentTarget.replaceChildren(document.createTextNode(activeFilter === 'all' ? 'All tasks' : categoryLabels[activeFilter]), make('span', '', '⌄')); renderTasks(); });
 document.querySelector('#openAddTask').addEventListener('click', event => setModal(true, event.currentTarget)); document.querySelector('#closeModal').addEventListener('click', () => setModal(false)); document.querySelector('#cancelModal').addEventListener('click', () => setModal(false)); document.querySelector('#taskModal').addEventListener('click', event => { if (event.target.id === 'taskModal') setModal(false); }); document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.querySelector('#taskModal').classList.contains('open')) setModal(false); });
-document.querySelector('#taskForm').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.currentTarget); const task = normalizeTask({ id: Date.now(), name: form.get('name'), subject: form.get('subject'), deadline: form.get('deadline'), importance: form.get('importance'), duration: Number(form.get('duration')), difficulty: form.get('difficulty'), progress: Number(form.get('progress')), action: form.get('description') || 'Break this task into the first 20-minute step.', blockedBy: '', subtasks: [] }); if (form.get('breakdown') || task.duration >= 180) task.subtasks = makeSubtasks(task); tasks.push(task); saveTasks(); renderAll(); setModal(false); event.currentTarget.reset(); showToast('Task added to your action plan.'); });
+document.querySelector('#taskForm').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.currentTarget); const task = normalizeTask({ id: Date.now(), name: form.get('name'), subject: form.get('subject'), deadline: form.get('deadline'), importance: form.get('importance'), duration: Number(form.get('duration')), difficulty: form.get('difficulty'), progress: Number(form.get('progress')), action: form.get('description') || 'Break this task into the first 20-minute step.', blockedBy: '', subtasks: [] }); if (form.get('breakdown') || (preferences.autoBreakdown && task.duration >= 180)) task.subtasks = makeSubtasks(task); tasks.push(task); saveTasks(); renderAll(); setModal(false); event.currentTarget.reset(); showToast('Task added to your action plan.'); });
 document.querySelector('#mobileMenu').addEventListener('click', () => document.querySelector('#sidebar').classList.toggle('open')); document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => { setView(item.dataset.view); document.querySelector('#sidebar').classList.remove('open'); }));
 
 let authSignUp = false;
@@ -215,6 +221,11 @@ document.querySelector('#settingsButton').addEventListener('click', () => setSet
 document.querySelector('#closeSettings').addEventListener('click', () => setSettings(false));
 document.querySelector('#settingsPanel').addEventListener('click', event => { if (event.target.id === 'settingsPanel') setSettings(false); });
 document.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.theme)));
+document.querySelector('#defaultTime').addEventListener('change', event => { preferences.availableMinutes = Math.max(15, Math.min(1440, Number(event.target.value) || 270)); document.querySelector('#availableTime').value = preferences.availableMinutes; savePreferences(); renderPlan(); });
+document.querySelector('#dayStart').addEventListener('change', event => { preferences.dayStart = event.target.value || '09:00'; savePreferences(); renderPlan(); });
+document.querySelector('#autoBreakdown').addEventListener('change', event => { preferences.autoBreakdown = event.target.checked; savePreferences(); });
+document.querySelector('#browserReminders').addEventListener('change', async event => { if (event.target.checked && 'Notification' in window) { const permission = await Notification.requestPermission(); if (permission !== 'granted') event.target.checked = false; } preferences.browserReminders = event.target.checked; savePreferences(); });
+document.querySelector('#resetPlan').addEventListener('click', () => { if (!window.confirm('Reset your local plan and restore the starter tasks?')) return; tasks = defaultTasks().map(normalizeTask); saveTasks(); renderAll(); renderPlan(); showToast('Your starter plan has been restored.'); });
 document.querySelector('#logoutButton').addEventListener('click', signOut);
 document.querySelector('#settingsLogout').addEventListener('click', signOut);
 document.addEventListener('keydown', event => { if (event.key === 'Escape') setSettings(false); });
@@ -222,4 +233,5 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape') setS
 const currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 document.querySelector('#currentDate').textContent = currentDate.toUpperCase();
 loadTheme();
+loadPreferences();
 initializeAuth();

@@ -3,6 +3,7 @@ const categoryLabels = { critical: 'Critical', attention: 'Needs attention', ahe
 const taskList = document.querySelector('#taskList');
 let activeFilter = 'all';
 let lastModalTrigger = null;
+let recommendationOffset = 0;
 
 function dateAtMidnight(value) {
   const date = value instanceof Date ? new Date(value) : new Date(`${value}T12:00:00`);
@@ -79,6 +80,47 @@ function make(tag, className, text) { const element = document.createElement(tag
 function formatDeadline(dateString) { const { days } = scoreTask({ deadline: dateString, importance: 'low', duration: 30, difficulty: 'easy', progress: 100 }); if (days < 0) return 'Overdue'; if (days === 0) return 'Today'; if (days === 1) return 'Tomorrow'; return `In ${days} days`; }
 function formatDuration(minutes) { return minutes >= 60 ? `${minutes / 60}h` : `${minutes} min`; }
 
+function inferAction(name, subject) {
+  const text = `${name} ${subject}`.toLowerCase();
+  if (text.includes('physics') || text.includes('study')) return 'Review the key concept, then solve 5 practice questions.';
+  if (text.includes('project') || text.includes('report')) return 'Write the problem statement section and save a first draft.';
+  if (text.includes('seminar') || text.includes('research')) return 'Find and save 3 credible sources for your talk.';
+  if (text.includes('exam') || text.includes('math')) return 'Review one chapter and complete 5 practice questions.';
+  return `Define the first 20-minute step for ${name.toLowerCase()}.`;
+}
+
+function parseNaturalPlan(input) {
+  const text = input.trim();
+  const availableMatch = text.match(/(\d+(?:\.\d+)?)\s*(hours?|hrs?|h|minutes?|mins?)/i);
+  if (availableMatch && /free|available|today/i.test(text)) {
+    const amount = Number(availableMatch[1]);
+    document.querySelector('#availableTime').value = Math.round((/hour|hr|h/i.test(availableMatch[2]) ? amount * 60 : amount) / 15) * 15;
+  }
+  const chunks = text.split(/[,;]|\band\s+(?=(?:my\s+)?(?:physics|math|mathematics|ai|project|chemistry|design|biology|computer|english|history))/i).map(chunk => chunk.trim()).filter(chunk => chunk && !/\d+\s*(hours?|hrs?|h|minutes?|mins?).*(free|available)/i.test(chunk));
+  const parsed = [];
+  chunks.forEach((chunk, index) => {
+    const lower = chunk.toLowerCase();
+    if (/free|available|today$/.test(lower) && !/(assignment|exam|seminar|project|report|study|work on)/.test(lower)) return;
+    const subjectMatch = lower.match(/(physics|mathematics|math|artificial intelligence|ai|chemistry|biology|design|history|english|computer science)/i);
+    const subject = subjectMatch ? subjectMatch[1].replace(/\bai\b/i, 'Artificial Intelligence') : 'Personal study';
+    const name = subjectMatch ? `${subject[0].toUpperCase()}${subject.slice(1)} ${/exam/i.test(chunk) ? 'Exam' : /seminar/i.test(chunk) ? 'Seminar' : /project/i.test(chunk) ? 'Project' : /report/i.test(chunk) ? 'Report' : 'Assignment'}` : chunk.replace(/\b(i have|my|a|an)\b/gi, '').trim();
+    const deadline = /tomorrow/i.test(chunk) ? dateInputFromToday(1) : /today/i.test(chunk) ? dateInputFromToday(0) : /friday/i.test(chunk) ? dateInputFromWeekday(5) : /monday/i.test(chunk) ? dateInputFromWeekday(1) : /next week|next wednesday/i.test(chunk) ? dateInputFromToday(9) : dateInputFromToday(index + 3);
+    const importance = /exam|tomorrow|urgent|important/i.test(chunk) ? 'high' : /project|report|seminar/i.test(chunk) ? 'medium' : 'low';
+    const duration = /exam/i.test(chunk) ? 90 : /project|report/i.test(chunk) ? 180 : /seminar/i.test(chunk) ? 60 : /study/i.test(chunk) ? 40 : 60;
+    const task = normalizeTask({ id: Date.now() + index, name: name || `New study task ${index + 1}`, subject, deadline, importance, duration, difficulty: duration >= 120 ? 'hard' : 'medium', progress: 0, action: inferAction(name, subject), blockedBy: '', subtasks: [] });
+    if (task.duration >= 180) task.subtasks = makeSubtasks(task);
+    parsed.push(task);
+  });
+  return parsed;
+}
+
+function dateInputFromWeekday(targetDay) {
+  const date = dateAtMidnight(new Date());
+  const distance = (targetDay - date.getDay() + 7) % 7 || 7;
+  date.setDate(date.getDate() + distance);
+  return [date.getFullYear(), String(date.getMonth() + 1).padStart(2, '0'), String(date.getDate()).padStart(2, '0')].join('-');
+}
+
 function makeSubtasks(task) {
   const templates = [['Define the first concrete step', 20], ['Gather notes and useful sources', 30], ['Complete the main working section', 45], ['Review and polish the result', 20]];
   const count = task.duration >= 180 ? 4 : task.duration >= 90 ? 3 : 2;
@@ -101,20 +143,22 @@ function renderStats() {
   const incomplete = tasks.filter(task => task.progress < 100); const attention = incomplete.filter(task => task.category === 'critical' || task.category === 'attention'); const overdue = incomplete.filter(task => task.days < 0); const workload = incomplete.reduce((sum, task) => sum + Math.round(task.duration * (1 - task.progress / 100)), 0); const completion = tasks.length ? Math.round(tasks.reduce((sum, task) => sum + task.progress, 0) / tasks.length) : 0;
   document.querySelector('#taskTotal').textContent = `${tasks.length} tasks`; document.querySelector('#navTaskCount').textContent = tasks.length; document.querySelector('#attentionTotal').textContent = `${attention.length} need attention`; document.querySelector('#upcomingTotal').textContent = `${incomplete.filter(task => task.days >= 0).length} upcoming`; document.querySelector('#workloadTotal').textContent = `${Math.floor(workload / 60)}h ${workload % 60}m`; document.querySelector('#completedCount').textContent = tasks.filter(task => task.progress >= 100).length; document.querySelector('#remainingCount').textContent = incomplete.length; document.querySelector('#overdueCount').textContent = overdue.length; document.querySelector('#completionRate').textContent = `${completion}%`; document.querySelector('#completionRing').replaceChildren(document.createTextNode(String(completion)), make('small', '', '%')); document.querySelector('.progress-ring').style.background = `conic-gradient(var(--blue) ${completion}%, #e9edfa 0)`;
 }
-function renderNextAction() { const task = tasks.filter(item => item.progress < 100).sort((a, b) => b.score - a.score)[0]; if (!task) return; document.querySelector('#nextActionTitle').textContent = `Start your ${task.name}`; document.querySelector('#nextActionDescription').textContent = task.action; const meta = document.querySelector('.action-meta'); meta.replaceChildren(make('span', '', `◷ ${formatDuration(task.duration)}`), make('span', '', `↗ ${task.difficulty === 'hard' ? 'Focused work' : 'Easy momentum'}`)); document.querySelector('.next-progress span').style.width = `${Math.max(task.progress, 17)}%`; const start = document.querySelector('#startNext'); start.dataset.start = task.id; start.disabled = false; }
+function renderNextAction() { const queue = tasks.filter(item => item.progress < 100).sort((a, b) => b.score - a.score); const task = queue.length ? queue[recommendationOffset % queue.length] : null; if (!task) return; document.querySelector('#nextActionTitle').textContent = `Start your ${task.name}`; document.querySelector('#nextActionDescription').textContent = task.action; const meta = document.querySelector('.action-meta'); meta.replaceChildren(make('span', '', `◷ ${formatDuration(task.duration)}`), make('span', '', `↗ ${task.explanation.slice(0, 2).join(' · ')}`)); document.querySelector('.next-progress span').style.width = `${Math.max(task.progress, 17)}%`; const start = document.querySelector('#startNext'); start.dataset.start = task.id; start.disabled = false; }
 function renderUpcoming() { const list = document.querySelector('#deadlineList'); const upcoming = tasks.filter(task => task.progress < 100).sort((a, b) => dateAtMidnight(a.deadline) - dateAtMidnight(b.deadline)).slice(0, 4); list.replaceChildren(...upcoming.map(task => { const item = make('div', `deadline-item${task.days <= 1 ? ' urgent' : ''}`); item.append(make('span', 'deadline-dot')); const copy = make('div'); copy.append(make('strong', '', task.name), make('span', '', formatDeadline(task.deadline))); item.append(copy, make('b', '', task.days < 0 ? 'late' : `${task.days}d`)); return item; })); }
 function renderAll() { enrichTasks(); renderTasks(); renderStats(); renderNextAction(); renderUpcoming(); }
 
 function activateTask(id) { const task = tasks.find(item => String(item.id) === String(id)); if (!task) return; task.progress = Math.min(100, task.progress + 25); if (task.progress >= 100) task.subtasks.forEach(subtask => { subtask.completed = true; }); saveTasks(); renderAll(); showToast(task.progress >= 100 ? `${task.name} completed.` : `${task.name} is now active.`); }
 function timeLabel(totalMinutes) { const hour = 9 + Math.floor(totalMinutes / 60); const minute = totalMinutes % 60; return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`; }
 function addPlanRow(parent, start, duration, name, isBreak) { const row = make('div', isBreak ? 'break-row' : ''); row.append(make('b', '', `${timeLabel(start)} – ${timeLabel(start + duration)}`), make('span', '', name)); parent.append(row); }
-function renderPlan() { const result = document.querySelector('#planResult'); result.replaceChildren(); const available = Math.max(15, Number(document.querySelector('#availableTime').value) || 0); const queue = tasks.filter(task => task.progress < 100).sort((a, b) => b.score - a.score); let used = 0; let cursor = 0; let scheduled = 0; queue.forEach(task => { const remaining = Math.round(task.duration * (1 - task.progress / 100)); const block = Math.min(remaining, available - used); if (block < 15) return; if (scheduled > 0) { if (used + 15 + block > available) return; addPlanRow(result, cursor, 15, 'Break', true); cursor += 15; used += 15; } addPlanRow(result, cursor, block, task.name, false); cursor += block; used += block; scheduled += 1; }); if (!scheduled) result.append(make('p', 'plan-empty', 'No incomplete task fits in this time window. Try adding more time or finishing a smaller task.')); }
+function renderPlan() { const result = document.querySelector('#planResult'); const adaptive = document.querySelector('#adaptiveResult'); result.replaceChildren(); adaptive.replaceChildren(); const available = Math.max(15, Number(document.querySelector('#availableTime').value) || 0); const queue = tasks.filter(task => task.progress < 100).sort((a, b) => b.score - a.score); let used = 0; let cursor = 0; let scheduled = 0; const skipped = []; queue.forEach(task => { const remaining = Math.round(task.duration * (1 - task.progress / 100)); const block = Math.min(remaining, available - used); if (block < 15) { skipped.push(task); return; } if (scheduled > 0) { if (used + 15 + block > available) { skipped.push(task); return; } addPlanRow(result, cursor, 15, 'Break', true); cursor += 15; used += 15; } addPlanRow(result, cursor, block, task.name, false); cursor += block; used += block; scheduled += 1; }); if (!scheduled) result.append(make('p', 'plan-empty', 'No incomplete task fits in this time window. Try adding more time or finishing a smaller task.')); if (skipped.length && scheduled) { adaptive.append(make('strong', '', `${skipped.length} task${skipped.length > 1 ? 's' : ''} moved to tomorrow`), document.createTextNode(`You have ${Math.max(0, available - used)} minutes left. ${skipped[0].name} is lower priority than today’s scheduled work, so keep it for your next planning session.`)); } }
 function showToast(message) { const toast = document.querySelector('#toast'); toast.querySelector('p').textContent = message; toast.classList.add('show'); clearTimeout(window.toastTimer); window.toastTimer = setTimeout(() => toast.classList.remove('show'), 2800); }
 function setModal(open, trigger) { const modal = document.querySelector('#taskModal'); modal.classList.toggle('open', open); modal.setAttribute('aria-hidden', String(!open)); if (open) { lastModalTrigger = trigger || document.querySelector('#openAddTask'); document.querySelector('#taskName').focus(); } else if (lastModalTrigger) lastModalTrigger.focus(); }
 function setView(view) { document.body.dataset.view = view; document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view)); const taskHeading = document.querySelector('.main-column > .section-heading'); const taskCards = document.querySelector('.task-list'); const next = document.querySelector('#nextActionPanel'); const progress = document.querySelector('.progress-section'); const right = document.querySelector('.right-column'); taskHeading.classList.toggle('view-hidden', view === 'calendar' || view === 'insights'); taskCards.classList.toggle('view-hidden', view === 'calendar' || view === 'insights'); next.classList.toggle('view-hidden', view !== 'overview'); progress.classList.toggle('view-hidden', view === 'calendar' || view === 'tasks'); right.classList.toggle('view-hidden', view === 'tasks' || view === 'insights'); if (view === 'calendar') renderPlan(); }
 
 document.querySelector('#startNext').addEventListener('click', event => activateTask(event.currentTarget.dataset.start));
+document.querySelector('#changeRecommendation').addEventListener('click', () => { const count = tasks.filter(task => task.progress < 100).length; if (!count) return; recommendationOffset = (recommendationOffset + 1) % count; renderNextAction(); showToast('Recommendation changed.'); });
 document.querySelector('#generatePlan').addEventListener('click', () => { renderPlan(); showToast('Your day is mapped out.'); });
+document.querySelector('#aiPlanForm').addEventListener('submit', event => { event.preventDefault(); const input = document.querySelector('#aiTaskInput'); const created = parseNaturalPlan(input.value); if (!created.length) { showToast('Add a task, deadline, or study goal first.'); return; } tasks.push(...created); saveTasks(); renderAll(); renderPlan(); input.value = ''; showToast(`${created.length} action${created.length > 1 ? 's' : ''} added to your plan.`); });
 document.querySelector('#filterButton').addEventListener('click', event => { const filters = ['all', 'critical', 'attention', 'ahead', 'later']; activeFilter = filters[(filters.indexOf(activeFilter) + 1) % filters.length]; event.currentTarget.replaceChildren(document.createTextNode(activeFilter === 'all' ? 'All tasks' : categoryLabels[activeFilter]), make('span', '', '⌄')); renderTasks(); });
 document.querySelector('#openAddTask').addEventListener('click', event => setModal(true, event.currentTarget)); document.querySelector('#closeModal').addEventListener('click', () => setModal(false)); document.querySelector('#cancelModal').addEventListener('click', () => setModal(false)); document.querySelector('#taskModal').addEventListener('click', event => { if (event.target.id === 'taskModal') setModal(false); }); document.addEventListener('keydown', event => { if (event.key === 'Escape' && document.querySelector('#taskModal').classList.contains('open')) setModal(false); });
 document.querySelector('#taskForm').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.currentTarget); const task = normalizeTask({ id: Date.now(), name: form.get('name'), subject: form.get('subject'), deadline: form.get('deadline'), importance: form.get('importance'), duration: Number(form.get('duration')), difficulty: form.get('difficulty'), progress: Number(form.get('progress')), action: form.get('description') || 'Break this task into the first 20-minute step.', blockedBy: '', subtasks: [] }); if (form.get('breakdown') || task.duration >= 180) task.subtasks = makeSubtasks(task); tasks.push(task); saveTasks(); renderAll(); setModal(false); event.currentTarget.reset(); showToast('Task added to your action plan.'); });

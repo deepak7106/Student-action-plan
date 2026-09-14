@@ -55,6 +55,11 @@
           <div class="stat-item workload"><div><span class="stat-label">ESTIMATED WORKLOAD</span><strong id="workloadTotal">6h 20m</strong></div><div class="workload-bars"><i></i><i></i><i></i><i></i><i></i><i class="muted"></i><i class="muted"></i></div></div>
         </section>
 
+        <section class="ai-planner-card" aria-labelledby="aiPlannerTitle">
+          <div class="ai-planner-copy"><div class="ai-badge">✦ AI-ASSISTED PLANNING</div><h2 id="aiPlannerTitle">Tell me what’s on your mind.</h2><p>Write it naturally. I’ll turn the messy list into a clear action plan with deadlines, effort, and a first step.</p></div>
+          <form class="ai-planner-form" id="aiPlanForm"><label for="aiTaskInput">Your tasks and available time</label><textarea id="aiTaskInput" placeholder="I have my physics assignment tomorrow, a mathematics exam on Monday, and 3 hours free today."></textarea><div class="ai-form-footer"><span>Try: “Study Physics” or “Work on project”</span><button class="primary-button" type="submit"><span>✦</span> Create my action plan</button></div></form>
+        </section>
+
         <div class="content-grid">
           <div class="main-column">
             <section class="section-heading"><div><p class="eyebrow">Your priority queue</p><h2>What needs attention?</h2></div><button class="text-button" id="filterButton">All tasks <span>⌄</span></button></section>
@@ -62,7 +67,7 @@
 
             <section class="next-action-panel" id="nextActionPanel">
               <div class="next-label"><span class="spark">✦</span><span>NEXT ACTION</span><em>ONE THING AT A TIME</em></div>
-              <div class="next-content"><div><h2 id="nextActionTitle">Start your Physics Assignment</h2><p id="nextActionDescription">Complete Questions 1–5 to build momentum.</p><div class="action-meta"><span>◷ 45 min</span><span>↗ Focused work</span></div></div><button class="start-button" id="startNext">Start now <span>→</span></button></div>
+              <div class="next-content"><div><h2 id="nextActionTitle">Start your Physics Assignment</h2><p id="nextActionDescription">Complete Questions 1–5 to build momentum.</p><div class="action-meta"><span>◷ 45 min</span><span>↗ Focused work</span></div></div><div class="next-actions"><button class="text-button light" id="changeRecommendation">Change recommendation</button><button class="start-button" id="startNext">Start now <span>→</span></button></div></div>
               <div class="next-progress"><span></span></div>
             </section>
 
@@ -70,7 +75,7 @@
           </div>
 
           <aside class="right-column">
-            <section class="day-plan-card"><div class="card-heading"><div><p class="eyebrow">Make it realistic</p><h2>Plan your day</h2></div><span class="plan-icon">✦</span></div><p>Turn your priorities into a focused schedule that fits your time.</p><label class="time-field" for="availableTime"><span>Available today</span><input id="availableTime" type="number" min="15" max="1440" step="15" value="270" aria-label="Available minutes today" /><span>min</span></label><button class="outline-button" id="generatePlan"><span>✦</span> Generate my day</button><div class="plan-result" id="planResult"></div></section>
+            <section class="day-plan-card"><div class="card-heading"><div><p class="eyebrow">Make it realistic</p><h2>Plan your day</h2></div><span class="plan-icon">✦</span></div><p>Turn your priorities into a focused schedule that fits your time.</p><label class="time-field" for="availableTime"><span>Available today</span><input id="availableTime" type="number" min="15" max="1440" step="15" value="270" aria-label="Available minutes today" /><span>min</span></label><button class="outline-button" id="generatePlan"><span>✦</span> Generate my day</button><div class="plan-result" id="planResult"></div><div class="adaptive-result" id="adaptiveResult" aria-live="polite"></div></section>
             <section class="upcoming-section"><div class="section-heading compact"><div><p class="eyebrow">Don’t let them sneak up</p><h2>Upcoming</h2></div><button class="icon-button" aria-label="Open calendar">→</button></div><div class="deadline-list" id="deadlineList"></div><button class="view-calendar">View calendar <span>→</span></button></section>
             <section class="quote-card"><span class="quote-mark">“</span><p>Start before you feel ready. Clarity comes from motion.</p><span class="quote-author">— YOUR PLANNER</span></section>
           </aside>
@@ -81,6 +86,6 @@
 
   <div class="modal-backdrop" id="taskModal" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-header"><div><p class="eyebrow">Build your plan</p><h2 id="modalTitle">Add a new task</h2></div><button class="close-button" id="closeModal" aria-label="Close">×</button></div><form id="taskForm"><label for="taskName">Task name<input id="taskName" name="name" placeholder="e.g. Prepare AI seminar" required /></label><div class="form-row"><label for="taskSubject">Subject / category<input id="taskSubject" name="subject" placeholder="e.g. Artificial Intelligence" required /></label><label for="taskDeadline">Deadline<input id="taskDeadline" name="deadline" type="date" required /></label></div><div class="form-row"><label for="taskImportance">Importance<select id="taskImportance" name="importance"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></label><label for="taskDuration">Estimated duration<select id="taskDuration" name="duration"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></label></div><div class="form-row"><label for="taskDifficulty">Difficulty<select id="taskDifficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label for="taskProgress">Progress<select id="taskProgress" name="progress"><option value="0">Not started</option><option value="25">Just started</option><option value="50">Halfway there</option></select></label></div><label for="taskDescription">Description <span class="optional">optional</span><textarea id="taskDescription" name="description" placeholder="What is the next concrete step?"></textarea></label><label class="checkbox-row" for="breakdownTask"><input id="breakdownTask" name="breakdown" type="checkbox" /> Break this into smaller actions</label><div class="modal-footer"><button type="button" class="text-button" id="cancelModal">Cancel</button><button type="submit" class="primary-button">Add to my plan <span>→</span></button></div></form></div></div>
   <div class="toast" id="toast"><span>✓</span><p>Task added to your action plan.</p></div>
-  <script src="app.js"></script>
+  <script src="app.js?v=2"></script>
 </body>
 </html>

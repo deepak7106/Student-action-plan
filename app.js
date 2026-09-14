@@ -1,4 +1,7 @@
-const STORAGE_KEY = 'student-action-planner.tasks.v1';
+const SUPABASE_URL = '';
+const SUPABASE_ANON_KEY = '';
+const STORAGE_KEY_PREFIX = 'student-action-planner.tasks.v1';
+const supabaseClient = SUPABASE_URL && SUPABASE_ANON_KEY && window.supabase ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 const categoryLabels = { critical: 'Critical', attention: 'Needs attention', ahead: 'Plan ahead', later: 'Later' };
 const taskList = document.querySelector('#taskList');
 let activeFilter = 'all';
@@ -43,10 +46,32 @@ function loadTasks() {
   }
 }
 
-let tasks = loadTasks();
+let tasks = [];
+let currentUser = null;
 
 function saveTasks() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks)); } catch (error) { console.warn('Unable to save tasks.', error); }
+  try {
+    if (!currentUser) return;
+    localStorage.setItem(`${STORAGE_KEY_PREFIX}.${currentUser.id}`, JSON.stringify(tasks));
+    if (supabaseClient) supabaseClient.from('user_plans').upsert({ user_id: currentUser.id, data: tasks }, { onConflict: 'user_id' }).then(({ error }) => { if (error) console.warn('Unable to sync tasks to Supabase.', error); });
+  } catch (error) { console.warn('Unable to save tasks.', error); }
+}
+
+async function loadUserTasks(user) {
+  currentUser = user;
+  try {
+    const saved = localStorage.getItem(`${STORAGE_KEY_PREFIX}.${user.id}`);
+    const parsed = saved ? JSON.parse(saved) : defaultTasks();
+    tasks = Array.isArray(parsed) ? parsed.map(normalizeTask) : defaultTasks().map(normalizeTask);
+  } catch (error) {
+    console.warn('Unable to load this user’s tasks; using defaults.', error);
+    tasks = defaultTasks().map(normalizeTask);
+  }
+  if (supabaseClient) {
+    const { data, error } = await supabaseClient.from('user_plans').select('data').eq('user_id', user.id).maybeSingle();
+    if (!error && Array.isArray(data?.data)) { tasks = data.data.map(normalizeTask); localStorage.setItem(`${STORAGE_KEY_PREFIX}.${user.id}`, JSON.stringify(tasks)); }
+    if (error) console.warn('Unable to load cloud tasks; using local tasks.', error);
+  }
 }
 
 function scoreTask(task) {
@@ -155,6 +180,17 @@ function showToast(message) { const toast = document.querySelector('#toast'); to
 function setModal(open, trigger) { const modal = document.querySelector('#taskModal'); modal.classList.toggle('open', open); modal.setAttribute('aria-hidden', String(!open)); if (open) { lastModalTrigger = trigger || document.querySelector('#openAddTask'); document.querySelector('#taskName').focus(); } else if (lastModalTrigger) lastModalTrigger.focus(); }
 function setView(view) { document.body.dataset.view = view; document.querySelectorAll('.nav-item').forEach(item => item.classList.toggle('active', item.dataset.view === view)); const taskHeading = document.querySelector('.main-column > .section-heading'); const taskCards = document.querySelector('.task-list'); const next = document.querySelector('#nextActionPanel'); const progress = document.querySelector('.progress-section'); const right = document.querySelector('.right-column'); taskHeading.classList.toggle('view-hidden', view === 'calendar' || view === 'insights'); taskCards.classList.toggle('view-hidden', view === 'calendar' || view === 'insights'); next.classList.toggle('view-hidden', view !== 'overview'); progress.classList.toggle('view-hidden', view === 'calendar' || view === 'tasks'); right.classList.toggle('view-hidden', view === 'tasks' || view === 'insights'); if (view === 'calendar') renderPlan(); }
 
+function setAuthScreen(visible) { document.querySelector('#authScreen').classList.toggle('visible', visible); document.querySelector('.app-shell').classList.toggle('protected-hidden', visible); }
+function setAuthStatus(message, isError = false) { const status = document.querySelector('#authStatus'); status.textContent = message; status.classList.toggle('error', isError); }
+function updateUserIdentity(user) { const email = user.email || ''; const name = user.user_metadata?.full_name || email.split('@')[0] || 'Student'; const initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); document.querySelector('#userName').textContent = name; document.querySelector('#userEmail').textContent = email; document.querySelector('#userAvatar').textContent = initials; document.querySelector('#headerAvatar').textContent = initials; }
+async function startAuthenticatedSession(session) { currentUser = session.user; await loadUserTasks(currentUser); updateUserIdentity(currentUser); setAuthScreen(false); renderAll(); renderPlan(); }
+async function initializeAuth() {
+  if (!supabaseClient) { setAuthScreen(true); document.querySelector('#googleSignIn').disabled = true; document.querySelector('#authSubmit').disabled = true; setAuthStatus('Authentication is not configured yet.'); return; }
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  if (session) await startAuthenticatedSession(session); else setAuthScreen(true);
+  supabaseClient.auth.onAuthStateChange(async (event, nextSession) => { if (nextSession) await startAuthenticatedSession(nextSession); else { currentUser = null; tasks = []; setAuthScreen(true); } });
+}
+
 document.querySelector('#startNext').addEventListener('click', event => activateTask(event.currentTarget.dataset.start));
 document.querySelector('#changeRecommendation').addEventListener('click', () => { const count = tasks.filter(task => task.progress < 100).length; if (!count) return; recommendationOffset = (recommendationOffset + 1) % count; renderNextAction(); showToast('Recommendation changed.'); });
 document.querySelector('#generatePlan').addEventListener('click', () => { renderPlan(); showToast('Your day is mapped out.'); });
@@ -164,6 +200,12 @@ document.querySelector('#openAddTask').addEventListener('click', event => setMod
 document.querySelector('#taskForm').addEventListener('submit', event => { event.preventDefault(); const form = new FormData(event.currentTarget); const task = normalizeTask({ id: Date.now(), name: form.get('name'), subject: form.get('subject'), deadline: form.get('deadline'), importance: form.get('importance'), duration: Number(form.get('duration')), difficulty: form.get('difficulty'), progress: Number(form.get('progress')), action: form.get('description') || 'Break this task into the first 20-minute step.', blockedBy: '', subtasks: [] }); if (form.get('breakdown') || task.duration >= 180) task.subtasks = makeSubtasks(task); tasks.push(task); saveTasks(); renderAll(); setModal(false); event.currentTarget.reset(); showToast('Task added to your action plan.'); });
 document.querySelector('#mobileMenu').addEventListener('click', () => document.querySelector('#sidebar').classList.toggle('open')); document.querySelectorAll('.nav-item').forEach(item => item.addEventListener('click', () => { setView(item.dataset.view); document.querySelector('#sidebar').classList.remove('open'); }));
 
+let authSignUp = false;
+document.querySelector('#authMode').addEventListener('click', event => { authSignUp = !authSignUp; document.querySelector('#authTitle').innerHTML = authSignUp ? 'Start your focused<br />workspace.' : 'Make progress<br />feel possible.'; document.querySelector('#authSubmit').innerHTML = authSignUp ? 'Create account <span>→</span>' : 'Sign in <span>→</span>'; event.currentTarget.innerHTML = authSignUp ? 'Already have an account? <strong>Sign in</strong>' : 'Need an account? <strong>Sign up</strong>'; });
+document.querySelector('#authForm').addEventListener('submit', async event => { event.preventDefault(); if (!supabaseClient) return; const email = document.querySelector('#authEmail').value; const password = document.querySelector('#authPassword').value; const result = authSignUp ? await supabaseClient.auth.signUp({ email, password }) : await supabaseClient.auth.signInWithPassword({ email, password }); if (result.error) setAuthStatus(result.error.message, true); else setAuthStatus(authSignUp ? 'Account created. Check your email to confirm it.' : 'Signed in. Loading your planner...'); });
+document.querySelector('#googleSignIn').addEventListener('click', async () => { if (!supabaseClient) return; const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } }); if (error) setAuthStatus(error.message, true); });
+document.querySelector('#logoutButton').addEventListener('click', async () => { if (supabaseClient) await supabaseClient.auth.signOut(); });
+
 const currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 document.querySelector('#currentDate').textContent = currentDate.toUpperCase();
-enrichTasks(); renderAll(); renderPlan();
+initializeAuth();

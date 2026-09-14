@@ -9,8 +9,20 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
+  <section class="auth-screen" id="authScreen" aria-labelledby="authTitle">
+    <div class="auth-card">
+      <div class="brand auth-brand"><div class="brand-mark"><span></span><span></span><span></span></div><span>action<span class="brand-accent">/</span>planner</span></div>
+      <div class="auth-heading"><p class="eyebrow">Your focused workspace</p><h1 id="authTitle">Make progress<br />feel possible.</h1><p>Sign in to keep your action plan with you across devices.</p></div>
+      <form id="authForm" class="auth-form"><label for="authEmail">Email<input id="authEmail" type="email" autocomplete="email" required /></label><label for="authPassword">Password<input id="authPassword" type="password" autocomplete="current-password" minlength="6" required /></label><button class="primary-button" type="submit" id="authSubmit">Sign in <span>→</span></button></form>
+      <button class="google-button" id="googleSignIn" type="button"><span class="google-g">G</span> Continue with Google</button>
+      <button class="auth-switch" id="authMode" type="button">Need an account? <strong>Sign up</strong></button>
+      <p class="auth-status" id="authStatus" role="alert"></p>
+      <p class="auth-config" id="authConfig">Add your Supabase URL and anon key in app.js to enable secure authentication.</p>
+    </div>
+  </section>
   <div class="app-shell">
     <aside class="sidebar" id="sidebar">
       <div class="brand">
@@ -31,7 +43,7 @@
           <p>Keep the next action tiny and clear.</p>
         </div>
         <button class="settings-link"><span>⚙</span> Settings</button>
-        <div class="user-chip"><div class="avatar">JD</div><div><strong>Jordan Davis</strong><span>Student account</span></div><span class="more">···</span></div>
+        <div class="user-chip"><div class="avatar" id="userAvatar">JD</div><div><strong id="userName">Student</strong><span id="userEmail">Signed in</span></div><button class="logout-button" id="logoutButton" aria-label="Sign out">↪</button></div>
       </div>
     </aside>
 
@@ -39,7 +51,7 @@
       <header class="topbar">
         <button class="mobile-menu" id="mobileMenu" aria-label="Open navigation">☰</button>
         <div class="breadcrumb"><span>Workspace</span><b>/</b><strong>Today</strong></div>
-        <div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<span class="notification-dot"></span></button><button class="avatar small">JD</button></div>
+        <div class="top-actions"><button class="icon-button" aria-label="Notifications">♧<span class="notification-dot"></span></button><button class="avatar small" id="headerAvatar">JD</button></div>
       </header>
 
       <div class="page-content">
@@ -86,6 +98,6 @@
 
   <div class="modal-backdrop" id="taskModal" aria-hidden="true"><div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle"><div class="modal-header"><div><p class="eyebrow">Build your plan</p><h2 id="modalTitle">Add a new task</h2></div><button class="close-button" id="closeModal" aria-label="Close">×</button></div><form id="taskForm"><label for="taskName">Task name<input id="taskName" name="name" placeholder="e.g. Prepare AI seminar" required /></label><div class="form-row"><label for="taskSubject">Subject / category<input id="taskSubject" name="subject" placeholder="e.g. Artificial Intelligence" required /></label><label for="taskDeadline">Deadline<input id="taskDeadline" name="deadline" type="date" required /></label></div><div class="form-row"><label for="taskImportance">Importance<select id="taskImportance" name="importance"><option value="high">High</option><option value="medium" selected>Medium</option><option value="low">Low</option></select></label><label for="taskDuration">Estimated duration<select id="taskDuration" name="duration"><option value="30">30 minutes</option><option value="60" selected>1 hour</option><option value="90">1.5 hours</option><option value="120">2 hours</option><option value="180">3 hours</option></select></label></div><div class="form-row"><label for="taskDifficulty">Difficulty<select id="taskDifficulty" name="difficulty"><option value="easy">Easy</option><option value="medium" selected>Medium</option><option value="hard">Hard</option></select></label><label for="taskProgress">Progress<select id="taskProgress" name="progress"><option value="0">Not started</option><option value="25">Just started</option><option value="50">Halfway there</option></select></label></div><label for="taskDescription">Description <span class="optional">optional</span><textarea id="taskDescription" name="description" placeholder="What is the next concrete step?"></textarea></label><label class="checkbox-row" for="breakdownTask"><input id="breakdownTask" name="breakdown" type="checkbox" /> Break this into smaller actions</label><div class="modal-footer"><button type="button" class="text-button" id="cancelModal">Cancel</button><button type="submit" class="primary-button">Add to my plan <span>→</span></button></div></form></div></div>
   <div class="toast" id="toast"><span>✓</span><p>Task added to your action plan.</p></div>
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=3"></script>
 </body>
 </html>

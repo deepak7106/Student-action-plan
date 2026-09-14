@@ -232,6 +232,8 @@ document.addEventListener('keydown', event => { if (event.key === 'Escape') setS
 
 const currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 document.querySelector('#currentDate').textContent = currentDate.toUpperCase();
+function updateGreeting() { const hour = new Date().getHours(); const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : hour < 21 ? 'Good evening' : 'Good night'; document.querySelector('#greetingTitle').replaceChildren(document.createTextNode(`${greeting} `), make('span', 'wave', '👋')); }
+updateGreeting();
 loadTheme();
 loadPreferences();
 initializeAuth();

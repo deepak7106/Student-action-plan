@@ -7,6 +7,7 @@ const taskList = document.querySelector('#taskList');
 let activeFilter = 'all';
 let lastModalTrigger = null;
 let recommendationOffset = 0;
+const THEME_STORAGE_KEY = 'student-action-planner.theme';
 
 function dateAtMidnight(value) {
   const date = value instanceof Date ? new Date(value) : new Date(`${value}T12:00:00`);
@@ -183,7 +184,7 @@ function setView(view) { document.body.dataset.view = view; document.querySelect
 function setAuthScreen(visible) { document.querySelector('#authScreen').classList.toggle('visible', visible); document.querySelector('.app-shell').classList.toggle('protected-hidden', visible); }
 function setAuthStatus(message, isError = false, showResend = false) { const status = document.querySelector('#authStatus'); status.textContent = message; status.classList.toggle('error', isError); document.querySelector('#resendConfirmation').hidden = !showResend; }
 function updateUserIdentity(user) { const email = user.email || ''; const name = user.user_metadata?.full_name || email.split('@')[0] || 'Student'; const initials = name.split(/\s+/).map(part => part[0]).join('').slice(0, 2).toUpperCase(); document.querySelector('#userName').textContent = name; document.querySelector('#userEmail').textContent = email; document.querySelector('#userAvatar').textContent = initials; document.querySelector('#headerAvatar').textContent = initials; document.querySelector('#settingsName').textContent = name; document.querySelector('#settingsEmail').textContent = email; document.querySelector('#settingsAvatar').textContent = initials; }
-async function startAuthenticatedSession(session) { currentUser = session.user; await loadUserTasks(currentUser); updateUserIdentity(currentUser); setAuthScreen(false); renderAll(); renderPlan(); }
+async function startAuthenticatedSession(session) { currentUser = session.user; await loadUserTasks(currentUser); loadTheme(); updateUserIdentity(currentUser); setAuthScreen(false); renderAll(); renderPlan(); }
 async function initializeAuth() {
   if (!supabaseClient) { setAuthScreen(true); document.querySelector('#googleSignIn').disabled = true; document.querySelector('#authSubmit').disabled = true; setAuthStatus('Authentication is not configured yet.'); return; }
   const { data: { session } } = await supabaseClient.auth.getSession();
@@ -206,14 +207,19 @@ document.querySelector('#authForm').addEventListener('submit', async event => { 
 document.querySelector('#resendConfirmation').addEventListener('click', async () => { if (!supabaseClient) return; const email = document.querySelector('#authEmail').value; const { error } = await supabaseClient.auth.resend({ type: 'signup', email, options: { emailRedirectTo: window.location.origin } }); setAuthStatus(error ? error.message : `A new confirmation email was sent to ${email}.`, Boolean(error)); });
 document.querySelector('#googleSignIn').addEventListener('click', async () => { if (!supabaseClient) return; const { error } = await supabaseClient.auth.signInWithOAuth({ provider: 'google', options: { redirectTo: window.location.origin } }); if (error) setAuthStatus(error.message, true); });
 function setSettings(open) { const panel = document.querySelector('#settingsPanel'); panel.classList.toggle('open', open); panel.setAttribute('aria-hidden', String(!open)); if (open) document.querySelector('#closeSettings').focus(); }
+function themeStorageKey() { return currentUser ? `${THEME_STORAGE_KEY}.${currentUser.id}` : THEME_STORAGE_KEY; }
+function applyTheme(theme) { const dark = theme === 'dark'; document.body.classList.toggle('dark-mode', dark); document.querySelectorAll('[data-theme]').forEach(button => { const selected = button.dataset.theme === theme; button.classList.toggle('selected', selected); button.setAttribute('aria-pressed', String(selected)); }); try { localStorage.setItem(themeStorageKey(), theme); } catch (error) { console.warn('Unable to save theme preference.', error); } }
+function loadTheme() { let theme = 'light'; try { theme = localStorage.getItem(themeStorageKey()) || localStorage.getItem(THEME_STORAGE_KEY) || 'light'; } catch (error) { console.warn('Unable to load theme preference.', error); } applyTheme(theme); }
 async function signOut() { if (!supabaseClient) { setAuthStatus('Authentication is not configured.', true); return; } const { error } = await supabaseClient.auth.signOut(); if (error) showToast(`Could not sign out: ${error.message}`); }
 document.querySelector('#settingsButton').addEventListener('click', () => setSettings(true));
 document.querySelector('#closeSettings').addEventListener('click', () => setSettings(false));
 document.querySelector('#settingsPanel').addEventListener('click', event => { if (event.target.id === 'settingsPanel') setSettings(false); });
+document.querySelectorAll('[data-theme]').forEach(button => button.addEventListener('click', () => applyTheme(button.dataset.theme)));
 document.querySelector('#logoutButton').addEventListener('click', signOut);
 document.querySelector('#settingsLogout').addEventListener('click', signOut);
 document.addEventListener('keydown', event => { if (event.key === 'Escape') setSettings(false); });
 
 const currentDate = new Intl.DateTimeFormat(undefined, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' }).format(new Date());
 document.querySelector('#currentDate').textContent = currentDate.toUpperCase();
+loadTheme();
 initializeAuth();
